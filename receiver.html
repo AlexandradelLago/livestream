@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<script type="text/javascript" src="http://cdn.staticfile.org/jquery/2.1.1-rc2/jquery.js" ></script>
+		<script type="text/javascript" src="./node_modules/webrtc-adapter-test/adapter.js" ></script>
+		<script type="text/javascript" src="/socket.io/socket.io.js" ></script>
+		<script type="text/javascript">
+		$(function () {
+			var receiving = false;
+			var self = this, room = 'foo';
+			window.AudioContext = window.AudioContext || window.webkitAudioContext;
+			self.audioContext = new AudioContext();
+			var socket = io.connect();
+			socket.on('connect', function() {
+				socket.emit('register', { type: "receiver" });
+				socket.on('data', function(msg) {
+					if (receiving) {
+						var source = self.audioContext.createBufferSource();
+						self.audioContext.decodeAudioData(msg.audio, function(decodedData) {
+							source.buffer = decodedData;
+							source.connect(self.audioContext.destination);
+							source.start(0);							
+						});
+					}
+				});
+			});
+			$('#receive').click(function() {
+				receiving = true;
+			});
+			$('#stop').click(function() {
+				receiving = false;
+			});
+		});
+		</script>
+	</head>
+	<body>
+		<button id="receive">receive</button>
+		<button id="stop">stop</button>
+	</body>
+</html>
