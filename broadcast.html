@@ -2,34 +2,46 @@
 <html>
 	<head>
 		<script type="text/javascript" src="http://cdn.staticfile.org/jquery/2.1.1-rc2/jquery.js" ></script>
-		<script type="text/javascript" src="/socket.io/socket.io.js" ></script>
 		<script type="text/javascript">
 		$(function () {
 			navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
 			
-			var self = this;
-			var wsStream = io.connect();
-			var sampleRate = 44100;
-			
-			wsStream.on('connect', function() {
-				wsStream.emit('register', { type: 'sender' });
-				navigator.getUserMedia({ audio: { sampleRate: 8000 }, video: true },
+			var self = this, recorder;
+			var localCanvasContext = $('#localCanvas')[0].getContext('2d');
+			var videoWidth = undefined, videoHeight = undefined, videoIsReady = false;
+			var video = $('#localVideo')[0];
+			var socketWorker = new Worker('socketWorker.js');
+			socketWorker.postMessage('connect');
+			$('#call').click(function() {
+				self.recording = true;
+				navigator.getUserMedia({ audio: true, video: true },
 					function(stream) {
-						$('#localVideo').prop('src', URL.createObjectURL(stream));
+						video.src = URL.createObjectURL(stream);
 						self.localStream = stream;
 						startRecording();
+						setInterval(frame, 42);
 					}, function(error) {
 						console.log(error)
 					});
 			});
 
-			$('#call').click(function() {
-				wsStream.emit('open');
-				self.recording = true;
-			});
-
 			function frame() {
-				if (self.localStream && self.localStream.active) {
+				if (video.videoWidth === 0 || video.videoHeight === 0) {
+					return;
+				}
+
+				videoIsReady = true;
+				
+				if (!videoWidth || !videoHeight) {
+					videoWidth = video.videoWidth;
+					videoHeight = video.videoHeight;
+					$('#localCanvas').prop('width', videoWidth).prop('height', videoHeight);
+				}
+						
+				if (self.recording && self.localStream) {
+					localCanvasContext.drawImage(video, 0, 0, videoWidth, videoHeight);
+					var data = localCanvasContext.getImageData(0, 0, videoWidth, videoHeight);
+					socketWorker.postMessage({ type: 'video', data: data });
 				}
 			};
 
@@ -37,72 +49,34 @@
 				var audioContext = window.AudioContext || window.webkitAudioContext;
 				var context = new audioContext();
 				var audioInput = context.createMediaStreamSource(self.localStream);
-				sampleRate = context.sampleRate;
 				var audioGain = context.createGain();
 				audioGain.gain.value = 0;
 				audioInput.connect(audioGain);
 				audioGain.connect(context.destination);
 				
 				var bufferSize = 2048;
-				var recorder = context.createScriptProcessor(bufferSize, 1, 1);
+				recorder = context.createScriptProcessor(bufferSize, 1, 1);
 				recorder.onaudioprocess = function(event) {
-					if (self.recording) {
+					if (self.recording && videoIsReady) {
 						console.log('recording');
-						var left = event.inputBuffer.getChannelData(0);
-						var audiodata = left;
-						audiodata = downsampleBuffer(audiodata, 8000);
-						audiodata = convertFloat32ToInt16(audiodata);
-						wsStream.emit('stream', { audio: audiodata.buffer });
+						var audiodata = event.inputBuffer.getChannelData(0);
+						socketWorker.postMessage({ type: 'audio', data: audiodata });
 					}
 				};
 				audioInput.connect(recorder);
 				recorder.connect(context.destination);
 			};
 
-			function downsampleBuffer(buffer, rate) {
-				if (rate == sampleRate) {
-					return buffer;
-				}
-				if (rate > sampleRate) {
-					throw "downsampling rate show be smaller than original sample rate";
-				}
-				var sampleRateRatio = sampleRate / rate;
-				var newLength = Math.round(buffer.length / sampleRateRatio);
-				var result = new Float32Array(newLength);
-				var offsetResult = 0;
-				var offsetBuffer = 0;
-				while (offsetResult < result.length) {
-					var nextOffsetBuffer = Math.round((offsetResult + 1) * sampleRateRatio);
-					var accum = 0, count = 0;
-					for (var i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
-						accum += buffer[i];
-						count++;
-					}
-					result[offsetResult] = accum / count;
-					offsetResult++;
-					offsetBuffer = nextOffsetBuffer;
-				}
-				return result;
-			};
-			
-			function convertFloat32ToInt16(buffer) {
-				var length = buffer.length;
-				var buf = new Int16Array(length);
-				while(length--) {
-					buf[length] = buffer[length] * 0xFFFF;
-				}
-				return buf;
-			}
-
 			$('#hangup').click(function() {
 				self.recording = false;
-				wsStream.emit('end');
+				socketWorker.postMessage('end');
 			});
 		});
 		</script>
 	</head>
 	<body>
 		<video id='localVideo' autoplay style='max-width:320px;max-height:240px' muted='muted' ></video>
+		<canvas id='localCanvas' style='max-width:320px;max-height:240px'></canvas>
 		<button id='call'>Call</button>
 		<button id='hangup'>hangup</button>
 	</body>

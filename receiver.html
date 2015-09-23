@@ -5,9 +5,19 @@
 		<script type="text/javascript" src="./node_modules/webrtc-adapter-test/adapter.js" ></script>
 		<script type="text/javascript" src="/socket.io/socket.io.js" ></script>
 		<script type="text/javascript">
+		function convertInt16ToFloat32(data) {
+			var result = new Float32Array(data.length);
+			data.forEach(function(sample, i) {
+				result[i] = sample < 0 ? sample / 0x80 : sample / 0x7F;
+			});
+			return result;
+		}
+		
 		$(function () {
 			var receiving = false;
 			var self = this, room = 'foo';
+			var canvasContext = $('#remote')[0].getContext('2d');
+			
 			window.AudioContext = window.AudioContext || window.webkitAudioContext;
 			self.audioContext = new AudioContext();
 			var socket = io.connect();
@@ -15,12 +25,18 @@
 				socket.emit('register', { type: "receiver" });
 				socket.on('data', function(msg) {
 					if (receiving) {
-						var source = self.audioContext.createBufferSource();
-						self.audioContext.decodeAudioData(msg.audio, function(decodedData) {
-							source.buffer = decodedData;
-							source.connect(self.audioContext.destination);
-							source.start(0);							
-						});
+						if (msg.audio) {
+							var data = new Int16Array(msg.audio);
+							data = convertInt16ToFloat32(data);
+							var buffer = self.audioContext.createBuffer(1, data.length, 8000);
+							var bufferSource = self.audioContext.createBufferSource();
+							buffer.getChannelData(0).set(data);
+							bufferSource.buffer = buffer;
+							bufferSource.connect(self.audioContext.destination);
+							bufferSource.start(0);
+						} else if (msg.video) {
+							canvasContext.putImageData(msg.video, 0, 0);
+						}
 					}
 				});
 			});
@@ -36,5 +52,6 @@
 	<body>
 		<button id="receive">receive</button>
 		<button id="stop">stop</button>
+		<canvas id="remote" style="max-width: 320px; max-height: 240px"></canvas>
 	</body>
 </html>
