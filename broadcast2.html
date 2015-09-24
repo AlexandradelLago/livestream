@@ -2,39 +2,19 @@
 <html>
 	<head>
 		<script type="text/javascript" src="http://cdn.staticfile.org/jquery/2.1.1-rc2/jquery.js" ></script>
-		<script type="text/javascript" src="/socket.io/socket.io.js"></script>
 		<script type="text/javascript">
 		$(function () {
 			navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
 			var self = this, recorder;
+			var canvas = $('#localCanvas')[0];
 			var localCanvasContext = $('#localCanvas')[0].getContext('2d');
 			var videoWidth = undefined, videoHeight = undefined, videoIsReady = false;
 			var video = $('#localVideo')[0];
+			var socket = new Worker('socketWorker.js');
 
-			var audioProcessor = new Worker('audioProcessor.js');
-			audioProcessor.addEventListener('message', function(event) {
-				socket.emit('audio', event.data);
-			});
-			
-			var videoProcessor = new Worker('videoProcessor.js');
-			videoProcessor.addEventListener('message', function(event) {
-				var width = event.data.width;
-				var height = event.data.height;
-				var data = event.data.data;
-//				socket.emit('video', { width: width, height: height, data: data });
-			});
-
-			var socket = io.connect();			
-			socket.on('connect', function() {
-				socket.emit('register', { type: 'sender' });
-				socket.emit('message', 'Hello I am broadcaster');
-			});
-
-			window.socket = socket;
-			
 			$('#call').click(function() {
 				self.recording = true;
-				navigator.getUserMedia({ audio: true, video: { width: 320, height: 240 } },
+				navigator.getUserMedia({ audio: true, video: true },
 					function(stream) {
 						video.src = URL.createObjectURL(stream);
 						self.localStream = stream;
@@ -61,9 +41,9 @@
 					
 					if (self.recording && self.localStream) {
 						localCanvasContext.drawImage(video, 0, 0, videoWidth, videoHeight);
-						var data = localCanvasContext.getImageData(0, 0, videoWidth, videoHeight);
-						//						videoProcessor.postMessage(data);
-//						socket.emit('video', { width: data.width, height: data.height, data: data.data });
+						//var data = localCanvasContext.getImageData(0, 0, videoWidth, videoHeight);
+						var data = canvas.toDataURL('image/jpeg', 0.5);
+						socket.postMessage({ type: 'video', data: data });
 					}
 				}, 42);
 			}
@@ -83,25 +63,16 @@
 					if (self.recording && videoIsReady) {
 						console.log('recording');
 						var audiodata = event.inputBuffer.getChannelData(0);
-						audioProcessor.postMessage(audiodata);
+						socket.postMessage({ type: 'audio', data: audiodata });
 					}
 				};
 				audioInput.connect(recorder);
 				recorder.connect(context.destination);
 			};
 
-function convertFloat32ToInt16(buffer) {
-    var length = buffer.length;
-    var buf = new Int16Array(length);
-    while(length--) {
-	buf[length] = buffer[length] * 0xFFFF;
-    }
-    return buf;
-};
-
 			$('#hangup').click(function() {
 				self.recording = false;
-				socket.emit('end');
+				socket.postMessage({ type: 'end' });
 			});
 		});
 		</script>

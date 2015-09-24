@@ -19,6 +19,10 @@ io.on('connection', function(socket) {
     var rawAudioName = 'data/' + socket.id + '.pcm';
 
     console.log('new user connected.');
+
+    socket.on('message', function(msg) {
+	console.log(msg);
+    });
     
     socket.on('register', function(msg) {
 	if (msg && msg.type && msg.type === 'sender') {
@@ -37,25 +41,23 @@ io.on('connection', function(socket) {
     socket.on('disconnect', function(e) {
 	console.log('disconnect');
     });
-    
-    socket.on('stream', function(msg) {
-	console.log('stream');
-	if (receiver) {
-	    if (msg.audio) {
-		receiver.emit('data', { type: 'audio', audio: msg.audio });
-	    } else {
-		receiver.emit('data', { type: 'video', video: msg.video });
-	    }
-	}
 
+    socket.on('video', function(msg) {
+	console.log('videoing');
+	if (receiver) receiver.emit('video', msg);
+    });
+    
+    socket.on('audio', function(msg) {
+	console.log('audioing');
+	if (receiver) receiver.emit('audio', msg);
 	if (!rawAudioFile) {
 	    console.log('create pcm file');	    
 	    rawAudioFile = fs.createWriteStream(rawAudioName);
 	}
-	if (msg.audio)
-	    rawAudioFile.write(msg.audio);
-    });
 
+	rawAudioFile.write(msg);	
+    });
+    
     socket.on('end', function() {
 	console.log('end');
 	if (socket === receiver) receiver = undefined;
@@ -74,3 +76,12 @@ io.on('connection', function(socket) {
 	}
     });
 });		
+
+function str2ab(str) {
+  var buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
+  var bufView = new Uint16Array(buf);
+  for (var i=0, strLen=str.length; i<strLen; i++) {
+    bufView[i] = str.charCodeAt(i);
+  }
+  return buf;
+}

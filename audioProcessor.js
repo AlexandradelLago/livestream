@@ -1,25 +1,15 @@
-self.importScripts('/socket.io/socket.io.js');
-
-self.sampleRate = 44100;
-
-var socket = io.connect().on('connect', function() {
-    socket.emit('message', 'hello I am socket worker');
-    socket.emit('register', { type: 'sender' });
-});
-
 self.addEventListener('message', function(event) {
-    var data = event.data.data;
-    var type = event.data.type;
-    
-    if (type === 'video') {
-	socket.emit('video', data);
-    } else if (type === 'audio') {
-	data = convertFloat32ToInt16(data);
-	socket.emit('audio', data.buffer);
-    }else if (type === 'end') {
-	socket.emit('end');
-    }
+    var audiodata = event.data;
+    var sampleRate = 44100;
+
+    //audiodata = downsampleBuffer(audiodata, 8000);
+    audiodata = convertFloat32ToInt16(audiodata);
+    self.postMessage(audiodata.buffer);
 });
+
+function ab2str(buf) {
+  return String.fromCharCode.apply(null, new Uint16Array(buf));
+};
 
 function downsampleBuffer(buffer, rate) {
     var sampleRate = self.sampleRate;
