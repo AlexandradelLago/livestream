@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv='Content-Type' content='text/html;charset=utf-8' />
+		<script type="text/javascript" src="http://cdn.staticfile.org/jquery/2.1.1-rc2/jquery.js" ></script>
+		<script type="text/javascript" src="./public/js/webMedia.js"></script>
+		<script type='text/javascript'>
+		$(function() {
+			var webMedia = new WebMedia();
+			var socket = new Worker('./public/js/socketWorker.js');
+			var videoInfo = {
+				width: undefined,
+				height: undefined,
+				imageType: 'image/jpeg',
+				imageQuality: 0.5,
+				audioBufferLength: 2048,
+				audioRate: 44100,
+				audioChannelNum: 1
+			};
+
+			var talk = new Talk('remoteVideo', 'localVideo');
+
+			$('#join').click(function() {
+				talk.join($('#room').val());
+			});
+		});
+		</script>
+	</head>
+	<body>
+		<div>
+			请输入房间号: <input type='text' id='room'></input>
+			<button id='join'>加入</button>
+			<button id='hangup'>退出</button>
+		</div>
+		<fieldset style='display:inline;width:40%'>
+			<legend>远程视频</legend>
+			<canvas id='remoteVideo' style='width:320px;height:240px'></canvas>
+		</fieldset>
+		<fieldset style='display:inline;width:40%'>
+			<legend>本地视频</legend>
+			<video id='localVideo' autoplay style='width:320px;height:240px'></video>
+		</fieldset>
+	</body>
+</html>
