@@ -1,4 +1,4 @@
-function VideoSetting() {
+function TalkConfig() {
     return {
 	videoWidth: 640,
 	videoHeight: 480,

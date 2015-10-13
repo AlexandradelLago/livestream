@@ -54,9 +54,6 @@
 				var audioInput = context.createMediaStreamSource(self.localStream);
 				var audioGain = context.createGain();
 				audioGain.gain.value = 0;
-				audioInput.connect(audioGain);
-				audioGain.connect(context.destination);
-				
 				var bufferSize = 2048;
 				recorder = context.createScriptProcessor(bufferSize, 1, 1);
 				recorder.onaudioprocess = function(event) {
@@ -67,7 +64,8 @@
 					}
 				};
 				audioInput.connect(recorder);
-				recorder.connect(context.destination);
+				recorder.connect(audioGain);
+				audioGain.connect(context.destination);
 			};
 
 			$('#hangup').click(function() {

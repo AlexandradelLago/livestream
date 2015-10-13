@@ -48,26 +48,26 @@ io.on('connection', function(socket) {
     });
 
     socket.on('video', function(msg) {
-	console.log('videoing');
+//	console.log('videoing');
 	if (receiver) receiver.emit('video', msg);
 
-	fs.writeFile(rawVideoFileName + (video_num++) + '.jpeg', msg.replace(/^data:image\/jpeg;base64,/, ''), 'base64', function(err) {
-	    if (err) {
-		console.log(err);
-	    }
-	});
+	// fs.writeFile(rawVideoFileName + (video_num++) + '.jpeg', msg.replace(/^data:image\/jpeg;base64,/, ''), 'base64', function(err) {
+	//     if (err) {
+	// 	console.log(err);
+	//     }
+	// });
     });
     
     socket.on('audio', function(msg) {
-	console.log('audioing');
+//	console.log('audioing');
 	if (receiver) receiver.emit('audio', msg);
 	
-	if (!rawAudioFile) {
-	    console.log('create pcm file');	    
-	    rawAudioFile = fs.createWriteStream(rawAudioName);
-	}
+	// if (!rawAudioFile) {
+	//     console.log('create pcm file');	    
+	//     rawAudioFile = fs.createWriteStream(rawAudioName);
+	// }
 
-	rawAudioFile.write(msg);	
+	// rawAudioFile.write(msg);	
     });
     
     socket.on('end', function() {
