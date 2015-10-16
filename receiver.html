@@ -30,9 +30,12 @@
 						data = convertInt16ToFloat32(data);
 						var buffer = self.audioContext.createBuffer(1, data.length, 44100);
 						var bufferSource = self.audioContext.createBufferSource();
+						var gain = self.audioContext.CreateGain();
+						gain.gain.value = 0.25;
 						buffer.getChannelData(0).set(data);
 						bufferSource.buffer = buffer;
-						bufferSource.connect(self.audioContext.destination); 
+						bufferSource.connect(gain);
+						gain.connect(self.audioContext.destination); 
 						bufferSource.start(0);
 					}
 				});
