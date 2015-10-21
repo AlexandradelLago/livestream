@@ -31,8 +31,7 @@ io.on('connection', function(socket) {
 	    console.log('register sender');
 	    sender = socket;
 	    video_num = 0;
-	    //	    rawAudioName = 'data/' + socket.id + '.pcm';
-	    rawAudioName = 'audio.pcm';
+	    rawAudioName = 'data/' + socket.id + '.pcm';
 	    rawVideoFileName = 'data/' + socket.id + '_';
 	} else {
 	    console.log('register receiver');
@@ -49,8 +48,9 @@ io.on('connection', function(socket) {
     });
 
     socket.on('video', function(msg) {
-//	console.log('videoing');
-	if (receiver) receiver.emit('video', msg);
+	if (receiver) {
+	    receiver.emit('video', msg);
+	}
 
 	// fs.writeFile(rawVideoFileName + (video_num++) + '.jpeg', msg.replace(/^data:image\/jpeg;base64,/, ''), 'base64', function(err) {
 	//     if (err) {
@@ -60,8 +60,9 @@ io.on('connection', function(socket) {
     });
     
     socket.on('audio', function(msg) {
-//	console.log('audioing');
-	if (receiver) receiver.emit('audio', msg);
+	if (receiver) {
+	    receiver.emit('audio', msg);
+	}
 	
 	if (!rawAudioFile) {
 	    console.log('create pcm file');	    
@@ -83,8 +84,8 @@ io.on('connection', function(socket) {
 	
 	if (rawAudioFile){
 	    rawAudioFile.end();
-	    //	    var command = 'ffmpeg -f image2 -i ' + rawVideoFileName + '%d.jpeg -f s16le -ar 44100 -ac 1 -i ' + rawAudioName + ' ' + rawVideoFileName + '.mp4';
-	    var command = 'ffmpeg -f s16le -ar 44100 -ac 1 -i ' + rawAudioName + ' audio.wav ';
+	    //	    var command = 'ffmpeg -f image2 -i ' + rawVideoFileName + '%d.jpeg -f f32le -ar 44100 -ac 1 -i ' + rawAudioName + ' ' + rawVideoFileName + '.mp4';
+	    var command = 'ffmpeg -f f32le -ar 44100 -ac 1 -i ' + rawAudioName + ' ' + rawAudioName + '.wav';
 	    console.log(command);
 	    exec(command,
 		 function(err, stdout, stderr) {

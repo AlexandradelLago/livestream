@@ -16,6 +16,7 @@ self.addEventListener('message', function(event) {
     } else if (type === 'audio') {
 	data = convertFloat32ToInt16(data);
 	socket.emit('audio', data.buffer);
+//	socket.emit('audio', data);
     }else if (type === 'end') {
 	socket.emit('end');
     }
@@ -50,9 +51,14 @@ function downsampleBuffer(buffer, rate) {
 
 function convertFloat32ToInt16(buffer) {
     var length = buffer.length;
-    var buf = new Int16Array(length);
-    while(length--) {
-	buf[length] = buffer[length] * 0xFFFF;
-    }
+    //var buf = new Int16Array(length);
+    var buf = new Float32Array(length);
+    //while(length--) {
+//	buf[length] = buffer[length] * 0xFFFF;
+  //  }
+    buf.forEach(function(item, i) {
+	buf[i] = buffer[i];
+    });
+    
     return buf;
 };

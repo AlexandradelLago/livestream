@@ -8,7 +8,8 @@
 		function convertInt16ToFloat32(data) {
 			var result = new Float32Array(data.length);
 			data.forEach(function(sample, i) {
-				result[i] = sample < 0 ? sample / 0x80 : sample / 0x7F;
+				//				result[i] = sample < 0 ? sample / 0x80 : sample / 0x7F;
+				result[i] = sample / 32768;
 			});
 			return result;
 		}
@@ -16,38 +17,55 @@
 		$(function () {
 			var receiving = false;
 			var self = this, room = 'foo';
-			var canvasContext = $('#remote')[0].getContext('2d');
-			var remoteImg = $('#remoteImg')[0];
-			
 			window.AudioContext = window.AudioContext || window.webkitAudioContext;
 			self.audioContext = new AudioContext();
+			var canvasContext = $('#remote')[0].getContext('2d');
+			var remoteImg = $('#remoteImg')[0];
+			var audioBuffer = [], videoBuffer = undefined;
+			
 			var socket = io.connect();
 			socket.on('connect', function() {
 				socket.emit('register', { type: "receiver" });
 				socket.on('audio', function(msg) {
 					if (receiving) {
-						var data = new Int16Array(msg);
-						data = convertInt16ToFloat32(data);
-						var buffer = self.audioContext.createBuffer(1, data.length, 44100);
-						var bufferSource = self.audioContext.createBufferSource();
-						var gain = self.audioContext.CreateGain();
-						gain.gain.value = 0.25;
-						buffer.getChannelData(0).set(data);
-						bufferSource.buffer = buffer;
-						bufferSource.connect(gain);
-						gain.connect(self.audioContext.destination); 
-						bufferSource.start(0);
+//												var data = new Int16Array(msg);
+						var data = new Float32Array(msg);
+//						data = convertInt16ToFloat32(data);
+						audioBuffer.push(data);
 					}
 				});
 				socket.on('video', function(data) {
-					if (receiving) {
-						remoteImg.src = data;
-//						var imageData = canvasContext.createImageData(data.width, data.height);
-//						for(var i = 0; i < data.data.length; i++) imageData.data[i] = data.data[i];
-//						canvasContext.putImageData(imageData, 0, 0);
-					}
+					videoBuffer = data;
 				});
 			});
+
+			setInterval(function() {
+				if (receiving && videoBuffer) {
+					remoteImg.src = videoBuffer;
+				}
+			}, 42);
+
+			var audioPlay = function() {
+				if (receiving) {
+					var data = audioBuffer.shift();
+					if (data) {
+						var buffer = self.audioContext.createBuffer(1, data.length, 44100);
+						var audioBufferSource = self.audioContext.createBufferSource();
+						var gain = self.audioContext.createGain();
+						gain.gain.value = 0.1;
+//						audioBufferSource.connect(gain);
+//						gain.connect(self.audioContext.destination); 
+						buffer.getChannelData(0).set(data);
+						audioBufferSource.buffer = buffer;
+						audioBufferSource.connect(self.audioContext.destination);
+						audioBufferSource.start();
+					}
+				}
+				setTimeout(audioPlay, 1);
+			};
+
+			setTimeout(audioPlay, 1);
+			
 			$('#receive').click(function() {
 				receiving = true;
 			});
