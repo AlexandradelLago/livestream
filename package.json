@@ -1,0 +1,15 @@
+{
+    "name": "livestream",
+    "version": "0.0.1",
+    "description": "a live video and audio talk project base html5 and node.js",
+    "author": "horsefaced <havasupai@gmail.com>",
+    "dependencies": {
+	"express": "4.x"
+    },
+    "scripts": {
+	"start": "node server.js"
+    },
+    "engines": {
+	"node": "1.x.x"
+    }
+}

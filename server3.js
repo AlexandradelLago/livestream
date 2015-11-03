@@ -1,11 +1,13 @@
 var cp = require('child_process');
 var spawn = cp.spawn;
 var exec = cp.exec;
+var static = require('node-static');
+var httpFile = new static.Server();
 var fs = require('fs');
 var os = require('os');
 
 var http = require('http').createServer(function(req, res) {
-
+    httpFile.serve(req, res);
 }).listen(9000, '0.0.0.0');
 
 var io = require("socket.io")(http);
@@ -46,28 +48,26 @@ io.on('connection', function(socket) {
     });
 
     socket.on('video', function(msg) {
-	if (receiver) {
-	    receiver.emit('video', msg);
-	}
+//	console.log('videoing');
+	if (receiver) receiver.emit('video', msg);
 
-	fs.writeFile(rawVideoFileName + (video_num++) + '.jpeg', msg.replace(/^data:image\/jpeg;base64,/, ''), 'base64', function(err) {
-	    if (err) {
-		console.log(err);
-	    }
-	});
+	// fs.writeFile(rawVideoFileName + (video_num++) + '.jpeg', msg.replace(/^data:image\/jpeg;base64,/, ''), 'base64', function(err) {
+	//     if (err) {
+	// 	console.log(err);
+	//     }
+	// });
     });
     
     socket.on('audio', function(msg) {
-	if (receiver) {
-	    receiver.emit('audio', msg);
-	}
+//	console.log('audioing');
+	if (receiver) receiver.emit('audio', msg);
 	
-	if (!rawAudioFile) {
-	    console.log('create pcm file');	    
-	    rawAudioFile = fs.createWriteStream(rawAudioName);
-	}
+	// if (!rawAudioFile) {
+	//     console.log('create pcm file');	    
+	//     rawAudioFile = fs.createWriteStream(rawAudioName);
+	// }
 
-	rawAudioFile.write(msg);	
+	// rawAudioFile.write(msg);	
     });
     
     socket.on('end', function() {
@@ -82,7 +82,7 @@ io.on('connection', function(socket) {
 	
 	if (rawAudioFile){
 	    rawAudioFile.end();
-	    var command = 'ffmpeg -f image2 -i ' + rawVideoFileName + '%d.jpeg -f f32be -ar 44100 -ac 1 -i ' + rawAudioName + ' ' + rawVideoFileName + '.mp4';
+	    var command = 'ffmpeg -f image2 -i ' + rawVideoFileName + '%d.jpeg -f s16le -ar 44100 -ac 1 -i ' + rawAudioName + ' ' + rawVideoFileName + '.mp4';
 	    console.log(command);
 	    exec(command,
 		 function(err, stdout, stderr) {
