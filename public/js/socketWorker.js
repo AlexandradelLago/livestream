@@ -1,7 +1,5 @@
 self.importScripts('/socket.io/socket.io.js');
-self.importScripts('/public/js/videoSetting.js');
 
-self.talkSetting = new VideoSetting();
 self.defaultSampleRate = 44100;
 
 self.addEventListener('message', function(event) {
@@ -13,6 +11,8 @@ self.addEventListener('message', function(event) {
     } else if (type === 'audio') {
 	data = convertFloat32ToInt16(data);
 	self.socket.emit('audio', data.buffer);
+    } else if (type === 'message') {
+	self.socket.emit('message', data);
     } else if (type === 'join') {
 	if (self.socket) {
 	    self.socket.disconnect();
@@ -20,11 +20,22 @@ self.addEventListener('message', function(event) {
 	
 	self.socket = io.connect().on('connect', function() {
 	    self.socket.on('syncSetting', function(setting) {
-		self.talkSetting = setting;
 		self.postMessage({ type: 'setting', data: setting });
 	    });
 
-	    self.socket.emit('join', { room: data.room });
+	    self.socket.on('message', function(data) {
+		self.postMessage({ type: 'message', data: data });
+	    });
+
+	    self.socket.on('video', function(video) {
+		self.postMessage({ type: 'video', data: video});
+	    });
+
+	    self.socket.on('audio', function(audio) {
+		self.postMessage({ type: 'audio', data: audio});
+	    });
+
+	    self.socket.emit('join', data);
 	});
     } else if (type === 'end') {
 	socket.emit('end');

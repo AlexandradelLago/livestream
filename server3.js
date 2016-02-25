@@ -2,12 +2,19 @@ var cp = require('child_process');
 var spawn = cp.spawn;
 var exec = cp.exec;
 var static = require('node-static');
-var httpFile = new static.Server();
+var httpFile = new static.Server({ cache: false, serverInfo: 'livestream' });
 var fs = require('fs');
 var os = require('os');
 
 var http = require('http').createServer(function(req, res) {
-    httpFile.serve(req, res);
+    httpFile.serve(req, res, function(error, result) {
+	if (error) {
+	    console.log('Has Error:' + error.message);
+	    res.writeHead(error.status, error.headers);
+	    res.write(error.status + ":" + error.message);
+	    res.end();
+	}
+    });
 }).listen(9000, '0.0.0.0');
 
 var io = require("socket.io")(http);

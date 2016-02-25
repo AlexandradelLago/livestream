@@ -1,0 +1,68 @@
+body {
+    width: 100%;
+    height: 100%;
+}
+.head_region, .communicate_region {
+    width: 100%;
+}
+.head_region .room {
+    width: 50%;
+}
+.communicate_region {
+    height: 80%;
+}
+.communicate_region .video_region, .communicate_region .talk_region {
+    float: left;
+    height: 100%;
+    border: 1px solid gray;
+}
+.video_region {
+    width: 79%;
+}
+.talk_region {
+    width: 20%;
+}
+#local_video {
+    width: 80px;
+    height: 60px;
+    border: 1px solid gray;
+    margin-left: 5px;
+    margin-top: 5px;
+    position: absolute;
+}
+#remote_video {
+    width: 100%;
+    height: 100%;
+}
+.message_region {
+    height: 80%;
+    border: 1px solid black;
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+}
+.message_region li {
+    padding: 5px 10px;
+}
+.send_region {
+    height: 20%;
+    width: 100%;
+}
+.send_region .message, .send_region .send {
+    height: 100%;
+    float: left;
+}
+.send {
+    width: 20%;
+    text-align: center;
+    background-color: orange;
+}
+.message {
+    width: 80%;
+}
+.self_msg {
+    Background-color: green;
+}
+.other_msg {
+    Background-color: red;
+}

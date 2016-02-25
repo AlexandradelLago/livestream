@@ -1,4 +1,4 @@
-function TalkConfig() {
+define(function() {
     return {
 	videoWidth: 640,
 	videoHeight: 480,
@@ -10,4 +10,4 @@ function TalkConfig() {
 	audioChannelNum: 1
     };
 
-};
+});

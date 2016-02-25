@@ -59,7 +59,7 @@
 				recorder = context.createScriptProcessor(0, 1, 1);
 				recorder.onaudioprocess = function(event) {
 					if (self.recording && videoIsReady) {
-//						console.log('recording');
+						console.log('recording');
 						var audiodata = event.inputBuffer.getChannelData(0);
 						socket.postMessage({ type: 'audio', data: audiodata });
 					}

@@ -1,0 +1,27 @@
+<html>
+	<head>
+		<link rel="stylesheet" type="text/css" href="public/css/index.css">
+	</head>
+	<body>
+		<div class="head_region">
+			<input class="name" type='text' placeholder='please input your nickname' />
+			<input class="room" type="text" placeholder="please input the room what you want to create or join" />
+			<input class="join" type="button" value="create/join" />
+			<input class="hangup" type="button" value="hangup" />
+		</div>
+		<div class="communicate_region">
+			<div class="video_region">
+				<video id="local_video" muted="muted" autoplay ></video>
+				<img id="remote_video" />
+			</div>
+			<div class="talk_region">
+				<ul class="message_region"></ul>
+				<div class="send_region">
+					<textarea class="message" type="text" placeholder="please input your message" ></textarea>
+					<div class="send">send</div>
+				</div>
+			</div>
+		</div>
+		<script type="text/javascript" src="http://cdn.staticfile.org/require.js/2.1.22/require.min.js" data-main="public/js/index.js"></script>
+	</body>
+</html>
