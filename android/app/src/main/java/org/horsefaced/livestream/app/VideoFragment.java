@@ -3,38 +3,42 @@ package org.horsefaced.livestream.app;
 import android.annotation.TargetApi;
 import android.app.Fragment;
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
+import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.*;
+import android.hardware.camera2.params.StreamConfigurationMap;
+import android.media.ImageReader;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.HandlerThread;
+import android.util.Log;
+import android.util.Size;
 import android.view.*;
 import android.widget.Toast;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.concurrent.Semaphore;
 
 
 @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-public class VideoFragment extends Fragment implements TextureView.SurfaceTextureListener {
+public class VideoFragment extends Fragment implements TextureView.SurfaceTextureListener, ImageReader.OnImageAvailableListener {
 
     private TextureView localVideo;
     private CameraDevice cameraDevice;
 
     private Semaphore cameraLock = new Semaphore(1);
     private Handler mainHandler = new Handler();
-    private CaptureRequest.Builder cameraPreviewBuilder;
-    private Canvas localCanvas = new Canvas();
+    private ImageReader localImageReader;
 
     private CameraDevice.StateCallback stateCallback = new CameraDevice.StateCallback() {
         @Override
         public void onOpened(CameraDevice camera) {
+            cameraLock.release();
             cameraDevice = camera;
             startLocal();
-            cameraLock.release();
         }
 
         @Override
@@ -52,6 +56,8 @@ public class VideoFragment extends Fragment implements TextureView.SurfaceTextur
         }
     };
     private Surface localSurface;
+    private HandlerThread backgroundThread;
+    private Handler backgroundHandler;
 
     public static VideoFragment newInstance() {
         return new VideoFragment();
@@ -68,39 +74,18 @@ public class VideoFragment extends Fragment implements TextureView.SurfaceTextur
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+        backgroundThread = new HandlerThread("LocalImageCaptureThread");
+        backgroundThread.start();
+        backgroundHandler = new Handler(backgroundThread.getLooper());
+
         localVideo = (TextureView) view.findViewById(R.id.local);
         localVideo.setSurfaceTextureListener(this);
-
-        localCanvas.setBitmap(Bitmap.createBitmap(640, 480, Bitmap.Config.ARGB_8888));
     }
 
     @Override
     public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
         localSurface = new Surface(surface);
-        openCamera();
-    }
-
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-    private void openCamera() {
-        CameraManager manager = (CameraManager) getActivity().getSystemService(Context.CAMERA_SERVICE);
-
-        try {
-            cameraLock.acquire();
-
-            for (String cameraId : manager.getCameraIdList()) {
-                CameraCharacteristics cameraCharacteristics = manager.getCameraCharacteristics(cameraId);
-                if (cameraCharacteristics.get(cameraCharacteristics.LENS_FACING) == cameraCharacteristics.LENS_FACING_FRONT) {
-                    manager.openCamera(cameraId, stateCallback, mainHandler);
-                    return;
-                }
-            }
-
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (CameraAccessException e) {
-            e.printStackTrace();
-        }
-        Toast.makeText(getActivity(), "Open Camera Error!", Toast.LENGTH_SHORT).show();
+        openCamera(width, height);
     }
 
     @Override
@@ -115,30 +100,56 @@ public class VideoFragment extends Fragment implements TextureView.SurfaceTextur
 
     @Override
     public void onSurfaceTextureUpdated(SurfaceTexture surface) {
-        Canvas canvas = localSurface.lockCanvas(null);
-        try {
-            Bitmap bitmap = Bitmap.createBitmap(640, 480, Bitmap.Config.ARGB_8888);
-            canvas.setBitmap(bitmap);
-            localCanvas.drawBitmap(bitmap, 0, 0, null);
 
-        } finally {
-            localSurface.unlockCanvasAndPost(canvas);
+    }
+
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    private void openCamera(int width, int height) {
+        CameraManager manager = (CameraManager) getActivity().getSystemService(Context.CAMERA_SERVICE);
+
+        try {
+            cameraLock.acquire();
+
+            for (String cameraId : manager.getCameraIdList()) {
+                CameraCharacteristics cameraCharacteristics = manager.getCameraCharacteristics(cameraId);
+                if (cameraCharacteristics.get(cameraCharacteristics.LENS_FACING) != cameraCharacteristics.LENS_FACING_FRONT)
+                    continue;
+
+                StreamConfigurationMap map = cameraCharacteristics.get(cameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+                if (map == null) continue;
+
+                Size largest = Collections.max(Arrays.asList(map.getOutputSizes(ImageFormat.YUV_420_888)), new Comparator<Size>() {
+                    @Override
+                    public int compare(Size lhs, Size rhs) {
+                        return Long.signum(lhs.getWidth() * lhs.getHeight() - rhs.getWidth() * rhs.getHeight());
+                    }
+                });
+                localImageReader = ImageReader.newInstance(largest.getWidth(), largest.getHeight(), ImageFormat.YUV_420_888, 2);
+                localImageReader.setOnImageAvailableListener(this, backgroundHandler);
+
+                manager.openCamera(cameraId, stateCallback, backgroundHandler);
+            }
+
+        } catch (InterruptedException e) {
+            Toast.makeText(getActivity(), "Open Camera Error!", Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
+        } catch (CameraAccessException e) {
+            Toast.makeText(getActivity(), "Open Camera Error!", Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
         }
 
     }
 
     private void startLocal() {
-        List<Surface> surfaces = new ArrayList<>();
         try {
-            cameraPreviewBuilder = cameraDevice.createCaptureRequest(cameraDevice.TEMPLATE_RECORD);
-            surfaces.add(localSurface);
-            cameraPreviewBuilder.addTarget(localSurface);
-
-            cameraDevice.createCaptureSession(surfaces, new CameraCaptureSession.StateCallback() {
+            cameraDevice.createCaptureSession(Arrays.asList(localSurface, localImageReader.getSurface()), new CameraCaptureSession.StateCallback() {
                 @Override
                 public void onConfigured(CameraCaptureSession session) {
                     try {
-                        session.setRepeatingRequest(cameraPreviewBuilder.build(), null, mainHandler);
+                        CaptureRequest.Builder builder = session.getDevice().createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
+                        //builder.addTarget(localImageReader.getSurface());
+                        builder.addTarget(localSurface);
+                        session.setRepeatingRequest(builder.build(), null, mainHandler);
                     } catch (CameraAccessException e) {
                         e.printStackTrace();
                     }
@@ -152,5 +163,10 @@ public class VideoFragment extends Fragment implements TextureView.SurfaceTextur
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
+    }
+
+    @Override
+    public void onImageAvailable(ImageReader reader) {
+        Log.i("LiveStream", "Image Avaiable");
     }
 }

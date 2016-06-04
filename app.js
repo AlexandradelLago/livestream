@@ -25,7 +25,9 @@ io.on('connection', function(socket) {
 	if (!socket.video_num) {
 	    socket.video_num = 1;
 	    socket.data_dict = 'data/' + socket.room + '/';
-	    fs.mkdir(socket.data_dict);
+	    fs.mkdir(socket.data_dict, function(err, path) {
+		if (err) console.log(socket.data_dict + " is exists!");
+	    });
 	}
 	console.log("data_dict:" + socket.data_dict + " and userId:" + socket.userId);
 	socket.join(socket.room);
@@ -48,24 +50,26 @@ io.on('connection', function(socket) {
 
     socket.on('disconnect', function(e) {
 	console.log(socket.userName + ' has disconnected.');
+	socket.leave(socket.room);
     });
 
     socket.on('video', function(data) {
-	console.log(socket.userName + " is sending video.");
 	if (socket.room) {
 	    socket.broadcast.to(socket.room).emit('video', data);
+//	    console.log(socket.userName + " is sending video.");
+	    fs.writeFile(socket.data_dict + socket.userName  + (socket.video_num++) + '.jpeg', data.replace(/^data:image\/jpeg;base64,/, ''), 'base64', function(err, fp) {
+		if (err) {
+	 	    console.log(err);
+		}
+	    });
 	}
-	fs.writeFile(socket.data_dict + socket.userName  + (socket.video_num++) + '.jpeg', data.replace(/^data:image\/jpeg;base64,/, ''), 'base64', function(err) {
-	    if (err) {
-	 	console.log(err);
-	    }
-	});
     });
     
     socket.on('audio', function(data) {
-//	if (socket.room) {
-//	    socket.broadcast.to(socket.room).emit('audio', data);
-//	}
+	if (socket.room) {
+	    socket.broadcast.to(socket.room).emit('audio', data);
+//	    console.log(socket.userName + " is sending audio.");
+	}
 	
 	// if (!rawAudioFile) {
 	//     console.log('create pcm file');	    
@@ -76,29 +80,29 @@ io.on('connection', function(socket) {
     });
     
     socket.on('end', function() {
-	console.log('end');
-	if (socket === receiver) {
-	    console.log('receiver exit');
-	    receiver = undefined;
-	} else if (socket === sender) {
-	    console.log('sender exit');
-	    sender = undefined;
-	}
+	// console.log('end');
+	// if (socket === receiver) {
+	//     console.log('receiver exit');
+	//     receiver = undefined;
+	// } else if (socket === sender) {
+	//     console.log('sender exit');
+	//     sender = undefined;
+	// }
 	
-	if (rawAudioFile){
-	    rawAudioFile.end();
-	    var command = 'ffmpeg -f image2 -i ' + rawVideoFileName + '%d.jpeg -f s16le -ar 44100 -ac 1 -i ' + rawAudioName + ' ' + rawVideoFileName + '.mp4';
-	    console.log(command);
-	    exec(command,
-		 function(err, stdout, stderr) {
-		     if (err) {
-			 console.log(err);
-			 return;
-		     } else {
-			 console.log('convert end');
-		     }
-		 });
-	}
+	// if (rawAudioFile){
+	//     rawAudioFile.end();
+	//     var command = 'ffmpeg -f image2 -i ' + rawVideoFileName + '%d.jpeg -f s16le -ar 44100 -ac 1 -i ' + rawAudioName + ' ' + rawVideoFileName + '.mp4';
+	//     console.log(command);
+	//     exec(command,
+	// 	 function(err, stdout, stderr) {
+	// 	     if (err) {
+	// 		 console.log(err);
+	// 		 return;
+	// 	     } else {
+	// 		 console.log('convert end');
+	// 	     }
+	// 	 });
+	// }
     });
 });		
 

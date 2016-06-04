@@ -55,7 +55,7 @@ define(['jquery', 'socketio', 'webMedia', 'talkConfig'], function($, socketio, w
 	
 	self._startTalking = function() {
 	    self._startVideoRecoding();
-//	    self._startAudioRecording();
+	    self._startAudioRecording();
 	};
 
 	self._startVideoRecoding = function() {
@@ -69,7 +69,8 @@ define(['jquery', 'socketio', 'webMedia', 'talkConfig'], function($, socketio, w
 		self.socket.emit('video', self.canvas.toDataURL(imageType, quality));
 	    }, 100);
 	    self.remoteVideoShowId = setInterval(function() {
-		self.remote.src = self.remote_video;
+		if (self.remote_video)
+		    self.remote.src = self.remote_video;
 	    }, 100);
 	};
 
